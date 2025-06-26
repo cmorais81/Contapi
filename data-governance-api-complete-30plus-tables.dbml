@@ -1,0 +1,740 @@
+// DBML Template for Open Data Contract (ODC) - Version 4.0 (Enhanced + Modular & Auditable)
+// Enhanced with Monitoring, Governance Traceability & Modular Data Contracts
+// Atualizado: campos _id como uuid, removido campo id, removido "Databricks" dos nomes
+// MODELO COMPLETO COM 30+ TABELAS
+
+Project DataContractAnalytics_V4 {
+  database_type: 'PostgreSQL'
+  Note: '''
+    ## Modelo Analítico Aprimorado de Contrato de Dados (V4.0)
+    
+    Este modelo abrangente integra a observabilidade completa do monitoramento 
+    com a estrutura modular e auditável. Projetado para organizações maduras de dados que 
+    requerem observabilidade completa, rastreamento de conformidade, analytics avançados,
+    e gerenciamento robusto de contratos.
+    
+    **Principais Recursos V4.0:**
+    - **Integração:** Suporte nativo para Unity Catalog Metrics, ABAC, tabelas Iceberg
+    - **Observabilidade Completa:** Métricas de cluster, performance de jobs, analytics de queries
+    - **Estrutura Modular:** Versionamento, layouts, definições de equipe, SLAs, precificação
+    - **Governança Avançada:** Lineage em nível de coluna, classificação automatizada
+    - **Qualidade de Dados:** Tendências históricas, detecção de anomalias, monitoramento de SLA
+    - **RBAC & Permissões:** Controle de acesso baseado em funções integrado com ABAC
+    - **Auditabilidade Completa:** Trilha de auditoria imutável para todas as alterações
+    
+    **Flexibilidade de Versão e País:**
+    - Versionamento flexível por contrato e por país
+    - Melhor visibilidade de acessos de grupos e contratos
+    - Compliance multi-jurisdição robusto
+    
+    **Alterações V4.0:**
+    - Campos _id como UUID para identificação única global
+    - Removido campo id sequencial de todas as tabelas
+    - Nomes de tabelas e colunas sem referência específica a plataformas
+  '''
+}
+
+// ===== DEFINIÇÃO CENTRAL DO CONTRATO DE DADOS (Aprimorado V4.0) =====
+
+Table data_contracts {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_name varchar(255) [not null]
+  contract_description text
+  contract_version varchar(50) [not null, default: '1.0.0']
+  contract_status varchar(50) [not null, default: 'draft']
+  data_classification varchar(50) [not null, default: 'internal']
+  
+  // Informações de negócio
+  business_owner_id uuid [ref: > users._id]
+  technical_owner_id uuid [ref: > users._id]
+  data_steward_id uuid [ref: > users._id]
+  
+  // Informações geográficas e compliance - FLEXIBILIDADE POR PAÍS
+  country_code varchar(3) [not null]
+  jurisdiction varchar(100)
+  region varchar(100)
+  regulatory_framework varchar(100)
+  
+  // Datas importantes
+  effective_date timestamp
+  expiration_date timestamp
+  review_date timestamp
+  
+  // Configurações de retenção
+  data_retention_days integer [default: 1095]
+  purge_after_expiration boolean [default: false]
+  
+  // Metadados de controle
+  approved_at timestamp
+  approved_by_user_id uuid [ref: > users._id]
+  created_by_user_id uuid [not null, ref: > users._id]
+  updated_by_user_id uuid [ref: > users._id]
+  previous_version_id uuid [ref: > data_contracts._id]
+  
+  // Timestamps
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Contratos de dados principais com versionamento flexível por país'
+}
+
+// ===== VERSIONAMENTO E CONTROLE =====
+
+Table contract_versions {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  version_number varchar(50) [not null]
+  version_type varchar(20) [not null, default: 'minor']
+  country_specific_version boolean [default: false]
+  country_code varchar(3)
+  changelog text
+  is_breaking_change boolean [default: false]
+  migration_script text
+  created_by_user_id uuid [not null, ref: > users._id]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Versionamento flexível por contrato e país'
+}
+
+Table contract_layouts {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  layout_name varchar(255) [not null]
+  layout_type varchar(100) [not null]
+  layout_definition jsonb [not null]
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Layouts modulares para contratos'
+}
+
+// ===== USUÁRIOS E CONTROLE DE ACESSO =====
+
+Table users {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  username varchar(50) [unique, not null]
+  email varchar(255) [unique, not null]
+  full_name varchar(255) [not null]
+  password_hash varchar(255) [not null]
+  is_active boolean [default: true]
+  is_superuser boolean [default: false]
+  country_access varchar(3)[] [default: '{}']
+  last_login timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Usuários com controle de acesso por país'
+}
+
+Table user_groups {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  group_name varchar(100) [unique, not null]
+  description text
+  permissions jsonb [default: '{}']
+  country_restrictions varchar(3)[] [default: '{}']
+  contract_access_level varchar(50) [default: 'read']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Grupos com visibilidade aprimorada de acessos'
+}
+
+Table user_group_memberships {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null, ref: > users._id]
+  group_id uuid [not null, ref: > user_groups._id]
+  assigned_at timestamp [default: `CURRENT_TIMESTAMP`]
+  assigned_by_user_id uuid [ref: > users._id]
+  access_level varchar(50) [default: 'member']
+  
+  Note: 'Associação usuário-grupo com níveis de acesso'
+}
+
+Table user_roles {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  role_name varchar(100) [unique, not null]
+  description text
+  permissions jsonb [not null]
+  is_system_role boolean [default: false]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Roles do sistema para RBAC'
+}
+
+Table user_role_assignments {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null, ref: > users._id]
+  role_id uuid [not null, ref: > user_roles._id]
+  assigned_at timestamp [default: `CURRENT_TIMESTAMP`]
+  assigned_by_user_id uuid [ref: > users._id]
+  expires_at timestamp
+  
+  Note: 'Atribuição de roles aos usuários'
+}
+
+// ===== COMPLIANCE E FRAMEWORKS =====
+
+Table compliance_frameworks {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  framework_name varchar(255) [not null]
+  framework_code varchar(50) [unique, not null]
+  description text
+  applicable_countries varchar(3)[] [default: '{}']
+  data_retention_requirements jsonb [default: '{}']
+  consent_requirements jsonb [default: '{}']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Frameworks de compliance (GDPR, LGPD, CCPA, etc.)'
+}
+
+Table contract_compliance_frameworks {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  framework_id uuid [not null, ref: > compliance_frameworks._id]
+  compliance_status varchar(50) [default: 'pending']
+  last_validation_date timestamp
+  validation_results jsonb [default: '{}']
+  country_specific_rules jsonb [default: '{}']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Associação contrato-framework com regras por país'
+}
+
+Table compliance_rules {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  framework_id uuid [not null, ref: > compliance_frameworks._id]
+  rule_name varchar(255) [not null]
+  rule_type varchar(100) [not null]
+  rule_definition jsonb [not null]
+  applicable_countries varchar(3)[] [default: '{}']
+  severity varchar(50) [default: 'medium']
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Regras específicas de compliance por framework'
+}
+
+// ===== OBJETOS E ESTRUTURA DE DADOS =====
+
+Table data_objects {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  object_name varchar(255) [not null]
+  object_type varchar(100) [not null]
+  object_description text
+  schema_definition jsonb [default: '{}']
+  data_format varchar(100)
+  encoding varchar(50)
+  storage_location text
+  access_pattern varchar(100)
+  quality_rules jsonb [default: '{}']
+  validation_rules jsonb [default: '{}']
+  business_glossary jsonb [default: '{}']
+  tags varchar(100)[] [default: '{}']
+  encryption_required boolean [default: false]
+  masking_rules jsonb [default: '{}']
+  access_controls jsonb [default: '{}']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Objetos de dados (tabelas, arquivos, streams, APIs)'
+}
+
+Table data_object_fields {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  data_object_id uuid [not null, ref: > data_objects._id]
+  field_name varchar(255) [not null]
+  field_type varchar(100) [not null]
+  field_description text
+  is_nullable boolean [default: true]
+  is_primary_key boolean [default: false]
+  is_foreign_key boolean [default: false]
+  default_value text
+  validation_rules jsonb [default: '{}']
+  quality_checks jsonb [default: '{}']
+  data_classification varchar(50) [default: 'internal']
+  is_pii boolean [default: false]
+  is_sensitive boolean [default: false]
+  masking_type varchar(50)
+  business_name varchar(255)
+  business_description text
+  business_rules text
+  field_order integer
+  field_group varchar(100)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Campos/colunas dos objetos de dados'
+}
+
+Table data_schemas {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  schema_name varchar(255) [not null]
+  schema_version varchar(50) [not null]
+  schema_definition jsonb [not null]
+  schema_format varchar(50) [not null]
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Schemas de dados versionados'
+}
+
+// ===== POLÍTICAS E CONTROLE DE ACESSO =====
+
+Table access_policies {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  policy_name varchar(255) [not null]
+  policy_type varchar(50) [not null]
+  policy_description text
+  policy_rules jsonb [not null, default: '{}']
+  conditions jsonb [default: '{}']
+  actions jsonb [default: '{}']
+  applies_to_objects uuid[] [default: '{}']
+  applies_to_fields uuid[] [default: '{}']
+  applies_to_users uuid[] [default: '{}']
+  applies_to_groups uuid[] [default: '{}']
+  country_restrictions varchar(3)[] [default: '{}']
+  is_active boolean [default: true]
+  effective_from timestamp [default: `CURRENT_TIMESTAMP`]
+  effective_until timestamp
+  created_by_user_id uuid [not null, ref: > users._id]
+  approved_by_user_id uuid [ref: > users._id]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Políticas de acesso granulares com visibilidade aprimorada'
+}
+
+Table access_control_lists {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  resource_type varchar(100) [not null]
+  resource_id uuid [not null]
+  principal_type varchar(50) [not null]
+  principal_id uuid [not null]
+  permission varchar(100) [not null]
+  granted boolean [default: true]
+  granted_by_user_id uuid [ref: > users._id]
+  granted_at timestamp [default: `CURRENT_TIMESTAMP`]
+  expires_at timestamp
+  
+  Note: 'Lista de controle de acesso granular'
+}
+
+Table data_masking_policies {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  policy_name varchar(255) [not null]
+  masking_type varchar(50) [not null]
+  masking_rules jsonb [not null]
+  applies_to_fields uuid[] [not null]
+  conditions jsonb [default: '{}']
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Políticas de mascaramento de dados'
+}
+
+// ===== AUDITORIA E MONITORAMENTO =====
+
+Table audit_logs {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [ref: > data_contracts._id]
+  user_id uuid [ref: > users._id]
+  action_type varchar(50) [not null]
+  resource_type varchar(100) [not null]
+  resource_id uuid
+  change_description text
+  old_values jsonb
+  new_values jsonb
+  change_summary jsonb [default: '{}']
+  ip_address inet
+  user_agent text
+  session_id varchar(255)
+  country_code varchar(3)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Logs de auditoria completos com rastreamento por país'
+}
+
+Table audit_trails {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  entity_type varchar(100) [not null]
+  entity_id uuid [not null]
+  operation varchar(50) [not null]
+  performed_by_user_id uuid [ref: > users._id]
+  performed_at timestamp [default: `CURRENT_TIMESTAMP`]
+  details jsonb [default: '{}']
+  correlation_id uuid
+  
+  Note: 'Trilha de auditoria imutável'
+}
+
+Table system_events {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  event_type varchar(100) [not null]
+  event_category varchar(50) [not null]
+  event_description text
+  event_data jsonb [default: '{}']
+  severity varchar(20) [default: 'info']
+  source_system varchar(100)
+  correlation_id uuid
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Eventos do sistema para monitoramento'
+}
+
+// ===== QUALIDADE DE DADOS =====
+
+Table quality_metrics {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  data_object_id uuid [ref: > data_objects._id]
+  field_id uuid [ref: > data_object_fields._id]
+  metric_name varchar(255) [not null]
+  metric_type varchar(100) [not null]
+  metric_description text
+  metric_definition jsonb [not null, default: '{}']
+  thresholds jsonb [default: '{}']
+  last_execution_date timestamp
+  last_result jsonb
+  execution_status varchar(50)
+  execution_history jsonb [default: '[]']
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Métricas de qualidade de dados automatizadas'
+}
+
+Table quality_rules {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  rule_name varchar(255) [not null]
+  rule_type varchar(100) [not null]
+  rule_definition jsonb [not null]
+  applies_to_objects uuid[] [default: '{}']
+  applies_to_fields uuid[] [default: '{}']
+  severity varchar(50) [default: 'medium']
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Regras de qualidade configuráveis'
+}
+
+Table quality_assessments {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  assessment_date timestamp [not null]
+  overall_score decimal(5,2)
+  completeness_score decimal(5,2)
+  accuracy_score decimal(5,2)
+  consistency_score decimal(5,2)
+  validity_score decimal(5,2)
+  uniqueness_score decimal(5,2)
+  timeliness_score decimal(5,2)
+  assessment_details jsonb [default: '{}']
+  recommendations text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Avaliações de qualidade de dados'
+}
+
+// ===== LINEAGE E RASTREABILIDADE =====
+
+Table data_lineage {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  source_contract_id uuid [ref: > data_contracts._id]
+  source_object_id uuid [ref: > data_objects._id]
+  source_field_id uuid [ref: > data_object_fields._id]
+  target_contract_id uuid [ref: > data_contracts._id]
+  target_object_id uuid [ref: > data_objects._id]
+  target_field_id uuid [ref: > data_object_fields._id]
+  transformation_type varchar(100)
+  transformation_logic text
+  transformation_rules jsonb [default: '{}']
+  lineage_type varchar(50) [not null, default: 'field_to_field']
+  confidence_score decimal(3,2) [default: 1.0]
+  is_verified boolean [default: false]
+  verified_by_user_id uuid [ref: > users._id]
+  verified_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Lineage completo para rastreabilidade'
+}
+
+Table lineage_graphs {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  graph_name varchar(255) [not null]
+  graph_type varchar(100) [not null]
+  root_entity_type varchar(100) [not null]
+  root_entity_id uuid [not null]
+  graph_definition jsonb [not null]
+  is_cached boolean [default: false]
+  cache_expires_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Grafos de lineage para visualização'
+}
+
+Table impact_analysis {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  source_entity_type varchar(100) [not null]
+  source_entity_id uuid [not null]
+  change_type varchar(100) [not null]
+  impact_scope jsonb [not null]
+  affected_entities jsonb [not null]
+  risk_level varchar(50) [default: 'medium']
+  recommendations text
+  analysis_date timestamp [default: `CURRENT_TIMESTAMP`]
+  analyzed_by_user_id uuid [ref: > users._id]
+  
+  Note: 'Análise de impacto de mudanças'
+}
+
+// ===== MONITORAMENTO E MÉTRICAS =====
+
+Table monitoring_metrics {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [ref: > data_contracts._id]
+  metric_name varchar(255) [not null]
+  metric_type varchar(100) [not null]
+  metric_value decimal(15,4)
+  metric_unit varchar(50)
+  dimensions jsonb [default: '{}']
+  timestamp timestamp [not null]
+  collected_by varchar(100)
+  
+  Note: 'Métricas de monitoramento em tempo real'
+}
+
+Table performance_metrics {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [ref: > data_contracts._id]
+  operation_type varchar(100) [not null]
+  execution_time_ms integer
+  throughput_per_second decimal(10,2)
+  error_rate decimal(5,4)
+  success_rate decimal(5,4)
+  resource_usage jsonb [default: '{}']
+  timestamp timestamp [not null]
+  
+  Note: 'Métricas de performance de operações'
+}
+
+Table sla_definitions {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  contract_id uuid [not null, ref: > data_contracts._id]
+  sla_name varchar(255) [not null]
+  sla_type varchar(100) [not null]
+  target_value decimal(10,4) [not null]
+  threshold_warning decimal(10,4)
+  threshold_critical decimal(10,4)
+  measurement_window varchar(50) [not null]
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Definições de SLA para contratos'
+}
+
+Table sla_violations {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  sla_id uuid [not null, ref: > sla_definitions._id]
+  violation_type varchar(100) [not null]
+  actual_value decimal(10,4) [not null]
+  threshold_value decimal(10,4) [not null]
+  severity varchar(50) [not null]
+  violation_start timestamp [not null]
+  violation_end timestamp
+  resolution_notes text
+  resolved_by_user_id uuid [ref: > users._id]
+  
+  Note: 'Violações de SLA registradas'
+}
+
+// ===== NOTIFICAÇÕES E ALERTAS =====
+
+Table notifications {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  user_id uuid [not null, ref: > users._id]
+  contract_id uuid [ref: > data_contracts._id]
+  notification_type varchar(100) [not null]
+  title varchar(255) [not null]
+  message text [not null]
+  is_read boolean [default: false]
+  read_at timestamp
+  priority varchar(20) [default: 'medium']
+  category varchar(100)
+  metadata jsonb [default: '{}']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Sistema de notificações'
+}
+
+Table alert_rules {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  rule_name varchar(255) [not null]
+  rule_type varchar(100) [not null]
+  condition_expression text [not null]
+  severity varchar(50) [not null]
+  notification_channels varchar(100)[] [default: '{}']
+  is_active boolean [default: true]
+  created_by_user_id uuid [ref: > users._id]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Regras de alertas configuráveis'
+}
+
+Table alert_instances {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  rule_id uuid [not null, ref: > alert_rules._id]
+  contract_id uuid [ref: > data_contracts._id]
+  alert_status varchar(50) [not null, default: 'active']
+  triggered_at timestamp [not null]
+  resolved_at timestamp
+  alert_data jsonb [default: '{}']
+  resolution_notes text
+  resolved_by_user_id uuid [ref: > users._id]
+  
+  Note: 'Instâncias de alertas disparados'
+}
+
+// ===== CONFIGURAÇÕES E METADADOS =====
+
+Table system_configurations {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  config_key varchar(255) [unique, not null]
+  config_value text [not null]
+  config_type varchar(50) [not null]
+  description text
+  is_encrypted boolean [default: false]
+  country_specific varchar(3)
+  updated_by_user_id uuid [ref: > users._id]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Configurações do sistema por país'
+}
+
+Table metadata_tags {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  tag_name varchar(100) [unique, not null]
+  tag_category varchar(100)
+  tag_description text
+  tag_color varchar(7)
+  is_system_tag boolean [default: false]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Tags de metadados para classificação'
+}
+
+Table entity_tags {
+  _id uuid [primary key, default: `uuid_generate_v4()`]
+  entity_type varchar(100) [not null]
+  entity_id uuid [not null]
+  tag_id uuid [not null, ref: > metadata_tags._id]
+  tagged_by_user_id uuid [ref: > users._id]
+  tagged_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Associação de tags às entidades'
+}
+
+// ===== RELACIONAMENTOS E REFERÊNCIAS =====
+
+// Relacionamentos de usuários
+Ref: user_group_memberships.user_id > users._id [delete: cascade]
+Ref: user_group_memberships.group_id > user_groups._id [delete: cascade]
+Ref: user_group_memberships.assigned_by_user_id > users._id
+Ref: user_role_assignments.user_id > users._id [delete: cascade]
+Ref: user_role_assignments.role_id > user_roles._id [delete: cascade]
+Ref: user_role_assignments.assigned_by_user_id > users._id
+
+// Relacionamentos de contratos
+Ref: data_contracts.business_owner_id > users._id
+Ref: data_contracts.technical_owner_id > users._id
+Ref: data_contracts.data_steward_id > users._id
+Ref: data_contracts.approved_by_user_id > users._id
+Ref: data_contracts.created_by_user_id > users._id
+Ref: data_contracts.updated_by_user_id > users._id
+Ref: data_contracts.previous_version_id > data_contracts._id
+
+// Relacionamentos de versões
+Ref: contract_versions.contract_id > data_contracts._id [delete: cascade]
+Ref: contract_versions.created_by_user_id > users._id
+Ref: contract_layouts.contract_id > data_contracts._id [delete: cascade]
+
+// Relacionamentos de compliance
+Ref: contract_compliance_frameworks.contract_id > data_contracts._id [delete: cascade]
+Ref: contract_compliance_frameworks.framework_id > compliance_frameworks._id [delete: cascade]
+Ref: compliance_rules.framework_id > compliance_frameworks._id [delete: cascade]
+
+// Relacionamentos de objetos de dados
+Ref: data_objects.contract_id > data_contracts._id [delete: cascade]
+Ref: data_object_fields.data_object_id > data_objects._id [delete: cascade]
+Ref: data_schemas.contract_id > data_contracts._id [delete: cascade]
+
+// Relacionamentos de políticas
+Ref: access_policies.contract_id > data_contracts._id [delete: cascade]
+Ref: access_policies.created_by_user_id > users._id
+Ref: access_policies.approved_by_user_id > users._id
+Ref: access_control_lists.granted_by_user_id > users._id
+Ref: data_masking_policies.contract_id > data_contracts._id [delete: cascade]
+
+// Relacionamentos de auditoria
+Ref: audit_logs.contract_id > data_contracts._id
+Ref: audit_logs.user_id > users._id
+Ref: audit_trails.performed_by_user_id > users._id
+
+// Relacionamentos de qualidade
+Ref: quality_metrics.contract_id > data_contracts._id [delete: cascade]
+Ref: quality_metrics.data_object_id > data_objects._id [delete: cascade]
+Ref: quality_metrics.field_id > data_object_fields._id [delete: cascade]
+Ref: quality_rules.contract_id > data_contracts._id [delete: cascade]
+Ref: quality_assessments.contract_id > data_contracts._id [delete: cascade]
+
+// Relacionamentos de lineage
+Ref: data_lineage.source_contract_id > data_contracts._id
+Ref: data_lineage.source_object_id > data_objects._id
+Ref: data_lineage.source_field_id > data_object_fields._id
+Ref: data_lineage.target_contract_id > data_contracts._id
+Ref: data_lineage.target_object_id > data_objects._id
+Ref: data_lineage.target_field_id > data_object_fields._id
+Ref: data_lineage.verified_by_user_id > users._id
+Ref: impact_analysis.analyzed_by_user_id > users._id
+
+// Relacionamentos de monitoramento
+Ref: monitoring_metrics.contract_id > data_contracts._id
+Ref: performance_metrics.contract_id > data_contracts._id
+Ref: sla_definitions.contract_id > data_contracts._id [delete: cascade]
+Ref: sla_violations.sla_id > sla_definitions._id [delete: cascade]
+Ref: sla_violations.resolved_by_user_id > users._id
+
+// Relacionamentos de notificações
+Ref: notifications.user_id > users._id [delete: cascade]
+Ref: notifications.contract_id > data_contracts._id [delete: cascade]
+Ref: alert_rules.created_by_user_id > users._id
+Ref: alert_instances.rule_id > alert_rules._id [delete: cascade]
+Ref: alert_instances.contract_id > data_contracts._id
+Ref: alert_instances.resolved_by_user_id > users._id
+
+// Relacionamentos de configurações
+Ref: system_configurations.updated_by_user_id > users._id
+Ref: entity_tags.tag_id > metadata_tags._id [delete: cascade]
+Ref: entity_tags.tagged_by_user_id > users._id
+
