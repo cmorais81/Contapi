@@ -1,0 +1,119 @@
+{
+  "cluster_name": "dados-cadastrais-runtime-15-4-optimized",
+  "spark_version": "15.4.x-scala2.12",
+  "node_type_id": "Standard_D16s_v3",
+  "driver_node_type_id": "Standard_D32s_v3",
+  "num_workers": 28,
+  "autoscale": {
+    "min_workers": 25,
+    "max_workers": 32
+  },
+  "spark_conf": {
+    "spark.executor.memory": "50g",
+    "spark.executor.cores": "8",
+    "spark.executor.memoryFraction": "0.75",
+    "spark.executor.memoryStorageFraction": "0.3",
+    "spark.driver.memory": "100g",
+    "spark.driver.cores": "16",
+    "spark.driver.maxResultSize": "8g",
+    
+    "spark.sql.autoBroadcastJoinThreshold": "1GB",
+    "spark.sql.broadcastTimeout": "1200",
+    "spark.network.timeout": "1200s",
+    "spark.rpc.askTimeout": "1200s",
+    "spark.rpc.lookupTimeout": "1200s",
+    
+    "spark.sql.adaptive.enabled": "true",
+    "spark.sql.adaptive.forceOptimizeSkewedJoin": "false",
+    "spark.sql.adaptive.coalescePartitions.enabled": "true",
+    "spark.sql.adaptive.coalescePartitions.parallelismFirst": "false",
+    "spark.sql.adaptive.coalescePartitions.minPartitionNum": "48",
+    "spark.sql.adaptive.coalescePartitions.maxPartitionNum": "96",
+    "spark.sql.adaptive.skewJoin.enabled": "true",
+    "spark.sql.adaptive.skewJoin.skewedPartitionFactor": "5",
+    "spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes": "1GB",
+    "spark.sql.adaptive.localShuffleReader.enabled": "true",
+    "spark.sql.adaptive.maxShuffledHashJoinLocalMapThreshold": "1GB",
+    "spark.sql.adaptive.advisoryPartitionSizeInBytes": "512MB",
+    "spark.sql.adaptive.shuffle.targetPostShuffleInputSize": "256MB",
+    "spark.sql.adaptive.optimizeSkewsInRebalancePartitions.enabled": "true",
+    
+    "spark.sql.shuffle.partitions": "48",
+    "spark.default.parallelism": "48",
+    "spark.sql.files.maxPartitionBytes": "1GB",
+    "spark.sql.files.openCostInBytes": "8388608",
+    
+    "spark.sql.execution.arrow.pyspark.enabled": "true",
+    "spark.sql.execution.arrow.maxRecordsPerBatch": "25000",
+    "spark.sql.execution.arrow.pyspark.fallback.enabled": "true",
+    
+    "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
+    "spark.kryo.unsafe": "true",
+    "spark.kryoserializer.buffer.max": "2048m",
+    
+    "spark.databricks.delta.optimizeWrite.enabled": "true",
+    "spark.databricks.delta.autoCompact.enabled": "true",
+    "spark.databricks.delta.retentionDurationCheck.enabled": "false",
+    
+    "spark.databricks.io.cache.enabled": "true",
+    "spark.databricks.io.cache.maxDiskUsage": "500g",
+    "spark.databricks.io.cache.maxMetaDataCache": "8g",
+    
+    "spark.sql.adaptive.join.preferSortMergeJoin": "false",
+    "spark.sql.adaptive.skewJoin.forceShuffleBeforeJoin.enabled": "false",
+    
+    "spark.sql.statistics.histogram.enabled": "true",
+    "spark.sql.statistics.histogram.numBins": "254",
+    "spark.sql.cbo.enabled": "true",
+    "spark.sql.cbo.joinReorder.enabled": "true",
+    "spark.sql.cbo.joinReorder.dp.threshold": "12",
+    "spark.sql.cbo.joinReorder.card.weight": "0.7",
+    "spark.sql.cbo.starSchemaDetection": "true",
+    
+    "spark.sql.parquet.enableVectorizedReader": "true",
+    "spark.sql.parquet.columnarReaderBatchSize": "8192",
+    "spark.sql.parquet.recordLevelFilter.enabled": "true",
+    
+    "spark.sql.optimizer.dynamicPartitionPruning.enabled": "true",
+    "spark.sql.optimizer.dynamicPartitionPruning.useStats": "true",
+    "spark.sql.optimizer.dynamicPartitionPruning.fallbackFilterRatio": "0.5",
+    "spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly": "false"
+  },
+  "azure_attributes": {
+    "availability": "ON_DEMAND_AZURE",
+    "first_on_demand": 28,
+    "spot_bid_max_price": -1
+  },
+  "enable_elastic_disk": true,
+  "disk_spec": {
+    "disk_type": {
+      "azure_disk_volume_type": "PREMIUM_LRS"
+    },
+    "disk_size": 1024
+  },
+  "init_scripts": [],
+  "enable_local_disk_encryption": true,
+  "autotermination_minutes": 60,
+  "ssh_public_keys": [],
+  "custom_tags": {
+    "Environment": "Production",
+    "Project": "DadosCadastrais",
+    "Owner": "DataEngineering",
+    "CostCenter": "IT-DataPlatform",
+    "Runtime": "15.4.x",
+    "OptimizationType": "BroadcastOptimized",
+    "DataVolume": "1TB"
+  },
+  "cluster_log_conf": {
+    "dbfs": {
+      "destination": "dbfs:/cluster-logs/dados-cadastrais-runtime-15-4"
+    }
+  },
+  "spark_env_vars": {
+    "PYSPARK_PYTHON": "/databricks/python3/bin/python3",
+    "JAVA_HOME": "/usr/lib/jvm/java-8-openjdk-amd64"
+  },
+  "data_security_mode": "SINGLE_USER",
+  "runtime_engine": "STANDARD"
+}
+
